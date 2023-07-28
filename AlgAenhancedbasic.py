@@ -322,11 +322,12 @@ added_note = ""
 
 ############
 ############ NOW YOUR CODE SHOULD BEGIN.
-############
-import os
+############import os
 import sys
 import time
 import random
+from scipy.sparse.csgraph import minimum_spanning_tree
+import numpy as np
 
 class TSPSolver:
     def __init__(self, dist_matrix):
@@ -334,15 +335,15 @@ class TSPSolver:
         self.num_cities = len(dist_matrix)
         self.tour = None
         self.tour_length = None
-        self.heuristic_cache = {}  # Dictionary to cache heuristic values for states
+        self.heuristic_cache = {}  # Missing: Initialize the heuristic cache
+        self.mst_cost = self.calculate_mst_cost(list(range(self.num_cities)))
 
-    def calculate_mst_cost(self, partial_tour):
-        # Function to calculate the minimum spanning tree cost for the given partial tour
-        visited_cities = set(partial_tour)
+    def calculate_mst_cost(self, tour):
+        # Function to calculate the minimum spanning tree cost for the given tour
+        visited_cities = set(tour)
         unvisited_cities = set(range(self.num_cities)) - visited_cities
         mst_cost = 0
 
-        # Prim's algorithm to build MST
         while unvisited_cities:
             min_edge = float('inf')
             nearest_city = None
@@ -375,68 +376,71 @@ class TSPSolver:
                 estimated_cost += self.dist_matrix[tour[-1]][i]
 
         # Add the cost of the minimum spanning tree
-        estimated_cost += self.calculate_mst_cost(tour)
+        mst_matrix = np.array([[self.dist_matrix[i][j] for j in tour if j != i] for i in tour])
+        mst = minimum_spanning_tree(mst_matrix)
+        estimated_cost += mst.sum()
 
         # Cache the heuristic value for this state
         self.heuristic_cache[state_tuple] = estimated_cost
 
         return estimated_cost
 
-    # Rest of the code remains unchanged...
-    # (hill_climbing, calculate_tour_length, and other functions)
+    def nearest_neighbor(self):
+        unvisited_cities = set(range(self.num_cities))
+        current_city = random.choice(list(unvisited_cities))
+        initial_tour = [current_city]
+        unvisited_cities.remove(current_city)
 
+        while unvisited_cities:
+            nearest_city = min(unvisited_cities, key=lambda city: self.dist_matrix[current_city][city])
+            initial_tour.append(nearest_city)
+            current_city = nearest_city
+            unvisited_cities.remove(current_city)
+
+        return initial_tour
+
+    def efficient_neighborhood(self, tour):
+        # Define an efficient neighborhood function that generates neighboring tours
+        neighbors = []
+        for i in range(self.num_cities):
+            for j in range(i + 2, self.num_cities):
+                neighbor = tour[:i + 1] + tour[i + 1:j + 1][::-1] + tour[j + 1:]
+                neighbors.append(neighbor)
+        return neighbors
 
     def hill_climbing(self):
         start_time = time.time()
-        initial_tour = random.sample(range(self.num_cities), self.num_cities)  # Generate a random initial tour
-        current_tour = initial_tour
-        current_tour_length = self.calculate_tour_length(current_tour)
 
-        # Define a neighborhood function that generates neighboring tours
-        def neighborhood(tour):
-            neighbors = []
-            for i in range(self.num_cities):
-                for j in range(i + 1, self.num_cities):
-                    neighbor = tour[:i] + tour[i:j + 1][::-1] + tour[j + 1:]
-                    neighbors.append(neighbor)
-            return neighbors
+        tour = self.nearest_neighbor()  # Use nearest neighbor to generate a better initial tour
+        tour_length = self.calculate_tour_length(tour)
+        improved = True
 
-        # Hill Climbing loop
-        while True:
-            best_neighbor = None
-            best_neighbor_length = current_tour_length
-
-            for neighbor in neighborhood(current_tour):
+        while improved:
+            improved = False
+            for neighbor in self.efficient_neighborhood(tour):
                 neighbor_length = self.calculate_tour_length(neighbor)
-                if neighbor_length < best_neighbor_length:
-                    best_neighbor = neighbor
-                    best_neighbor_length = neighbor_length
+                if neighbor_length < tour_length:
+                    tour = neighbor
+                    tour_length = neighbor_length
+                    improved = True
+                    break
 
-            if best_neighbor_length >= current_tour_length:
-                break
-
-            current_tour = best_neighbor
-            current_tour_length = best_neighbor_length
-
-        self.tour = current_tour
-        self.tour_length = current_tour_length
+        self.tour = tour
+        self.tour_length = tour_length
 
         end_time = time.time()  # Move end_time here
         execution_time = end_time - start_time
         print("Execution time:", execution_time, "seconds")
 
     def calculate_tour_length(self, tour):
-        tour_length = self.dist_matrix[tour[-1]][tour[0]]  # Add the distance from the last to the first city
-        for i in range(self.num_cities - 1):
-            tour_length += self.dist_matrix[tour[i]][tour[i + 1]]
-        return tour_length
-
-
-
-
-
-
-
+        # Calculate the total length of the tour
+        total_length = 0
+        num_cities = self.num_cities
+        dist_matrix = self.dist_matrix
+        for i in range(num_cities - 1):
+            total_length += dist_matrix[tour[i]][tour[i + 1]]
+        total_length += dist_matrix[tour[-1]][tour[0]]
+        return total_length
 
 
 # Usage of the TSPSolver class
