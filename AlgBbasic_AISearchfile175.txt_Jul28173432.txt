@@ -1,0 +1,5 @@
+USER = admin ( ),
+ALGORITHM CODE = GA, NAME OF CITY-FILE = AISearchfile175.txt.txt,
+SIZE = 12, TOUR LENGTH = 56,
+1,0,6,5,2,11,8,7,3,4,10,9,
+NOTE = 

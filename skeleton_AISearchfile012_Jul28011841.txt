@@ -1,5 +1,0 @@
-USER = admin ( ),
-ALGORITHM CODE = HC, NAME OF CITY-FILE = AISearchfile012.txt,
-SIZE = 17, TOUR LENGTH = 1618,
-13,2,4,3,11,5,9,0,15,12,16,10,8,7,1,14,6,
-NOTE = 

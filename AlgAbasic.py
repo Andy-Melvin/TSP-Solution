@@ -157,7 +157,7 @@ def read_in_algorithm_codes_and_tariffs(alg_codes_file):
 ############
 ############ END OF SECTOR 1 (IGNORE THIS COMMENT)
 
-input_file ="AISearchfile012.txt"
+input_file ="AISearchfile175.txt"
 
 ############ START OF SECTOR 2 (IGNORE THIS COMMENT)
 ############
@@ -289,7 +289,7 @@ my_last_name = ""
 ############
 ############ END OF SECTOR 7 (IGNORE THIS COMMENT)
 
-algorithm_code = "DE"
+algorithm_code = "HC"
 
 ############ START OF SECTOR 8 (IGNORE THIS COMMENT)
 ############
@@ -419,7 +419,7 @@ class TSPSolver:
 # Usage of the TSPSolver class
 if __name__ == "__main__":
     # Read the city file and build the distance matrix (Same as Sector 6)
-    input_file = "Channge_on_line_422.txt"  # Replace with the desired input file
+    input_file = "Channge_AISearchfile175.txt"  # Replace with the desired input file
     # ... (The code to read the city file and build the distance matrix remains unchanged as provided in the initial code)
     dist_matrix = build_distance_matrix(num_cities, distances, city_format)
 
