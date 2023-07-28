@@ -374,15 +374,10 @@ class TSPSolver:
         for i in range(self.num_cities):
             if i not in tour:
                 estimated_cost += self.dist_matrix[tour[-1]][i]
-
-        # Add the cost of the minimum spanning tree
         mst_matrix = np.array([[self.dist_matrix[i][j] for j in tour if j != i] for i in tour])
         mst = minimum_spanning_tree(mst_matrix)
         estimated_cost += mst.sum()
-
-        # Cache the heuristic value for this state
         self.heuristic_cache[state_tuple] = estimated_cost
-
         return estimated_cost
 
     def nearest_neighbor(self):
