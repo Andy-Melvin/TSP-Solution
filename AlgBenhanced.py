@@ -157,7 +157,7 @@ def read_in_algorithm_codes_and_tariffs(alg_codes_file):
 ############
 ############ END OF SECTOR 1 (IGNORE THIS COMMENT)
 
-input_file ="AISearchfile180.txt"
+input_file ="AISearchfile535.txt"
 
 ############ START OF SECTOR 2 (IGNORE THIS COMMENT)
 ############
@@ -289,7 +289,7 @@ my_last_name = ""
 ############
 ############ END OF SECTOR 7 (IGNORE THIS COMMENT)
 
-algorithm_code = "HC"
+algorithm_code = "SA"
 
 ############ START OF SECTOR 8 (IGNORE THIS COMMENT)
 ############
@@ -322,143 +322,124 @@ added_note = ""
 
 ############
 ############ NOW YOUR CODE SHOULD BEGIN.
-############import os
-import sys
+############import randomimport randomimport random
 import time
 import random
-from scipy.sparse.csgraph import minimum_spanning_tree
-import numpy as np
+import math
 
 class TSPSolver:
     def __init__(self, dist_matrix):
+        # Initialize the TSPSolver with the given distance matrix
         self.dist_matrix = dist_matrix
         self.num_cities = len(dist_matrix)
         self.tour = None
         self.tour_length = None
-        self.heuristic_cache = {}  # Missing: Initialize the heuristic cache
-        self.mst_cost = self.calculate_mst_cost(list(range(self.num_cities)))
+        self.mst_edges = None  # Pre-calculate MST edges
 
-    def calculate_mst_cost(self, tour):
-        # Function to calculate the minimum spanning tree cost for the given tour
-        visited_cities = set(tour)
-        unvisited_cities = set(range(self.num_cities)) - visited_cities
-        mst_cost = 0
+    def calculate_mst_edges(self):
+        # Prim's algorithm to calculate the minimum spanning tree edges
+        visited_cities = [0]  # Start with city 0
+        num_visited_cities = 1
+        mst_edges = []
 
-        while unvisited_cities:
+        while num_visited_cities < self.num_cities:
             min_edge = float('inf')
             nearest_city = None
 
             for city in visited_cities:
-                for neighbor in unvisited_cities:
-                    if city != neighbor and self.dist_matrix[city][neighbor] < min_edge:
+                for neighbor in range(self.num_cities):
+                    if neighbor not in visited_cities and self.dist_matrix[city][neighbor] < min_edge:
                         min_edge = self.dist_matrix[city][neighbor]
                         nearest_city = neighbor
 
             if nearest_city is not None:
-                mst_cost += min_edge
-                visited_cities.add(nearest_city)
-                unvisited_cities.remove(nearest_city)
+                mst_edges.append((visited_cities[-1], nearest_city))
+                visited_cities.append(nearest_city)
+                num_visited_cities += 1
 
-        return mst_cost
+        self.mst_edges = mst_edges
+
+    def calculate_tour_length(self, tour):
+        # Calculate the total length of the tour using the distance matrix
+        tour_length = sum(self.dist_matrix[tour[i]][tour[(i + 1) % self.num_cities]] for i in range(self.num_cities))
+        return tour_length
 
     def heuristic(self, state):
         # Calculate the heuristic value (estimated cost of optimal tour) for the given state
-        state_tuple = tuple(state)
-        if state_tuple in self.heuristic_cache:
-            return self.heuristic_cache[state_tuple]
+        remaining_cities = set(range(self.num_cities)) - set(state)
+        mst_cost = sum(self.dist_matrix[i][j] for i, j in self.mst_edges if j in remaining_cities)
+        return mst_cost
 
-        tour = state
-        estimated_cost = 0
+    def simulated_annealing(self, initial_temperature, cooling_rate, max_iterations):
+        start_time = time.time()  # Start measuring execution time
 
-        # Calculate the cost of the remaining edges in the tour
-        for i in range(self.num_cities):
-            if i not in tour:
-                estimated_cost += self.dist_matrix[tour[-1]][i]
-        mst_matrix = np.array([[self.dist_matrix[i][j] for j in tour if j != i] for i in tour])
-        mst = minimum_spanning_tree(mst_matrix)
-        estimated_cost += mst.sum()
-        self.heuristic_cache[state_tuple] = estimated_cost
-        return estimated_cost
+        current_tour = list(range(self.num_cities))  # Generate an initial tour
+        random.shuffle(current_tour)
+        current_tour_length = self.calculate_tour_length(current_tour)
 
-    def nearest_neighbor(self):
-        unvisited_cities = set(range(self.num_cities))
-        current_city = random.choice(list(unvisited_cities))
-        initial_tour = [current_city]
-        unvisited_cities.remove(current_city)
+        best_tour = current_tour
+        best_tour_length = current_tour_length
 
-        while unvisited_cities:
-            nearest_city = min(unvisited_cities, key=lambda city: self.dist_matrix[current_city][city])
-            initial_tour.append(nearest_city)
-            current_city = nearest_city
-            unvisited_cities.remove(current_city)
+        # Pre-calculate MST edges
+        self.calculate_mst_edges()
 
-        return initial_tour
+        # Simulated Annealing loop
+        temperature = initial_temperature
+        for iteration in range(max_iterations):
+            neighbor = self.get_random_neighbor(current_tour)
+            neighbor_length = self.calculate_tour_length(neighbor)
 
-    def efficient_neighborhood(self, tour):
-        # Define an efficient neighborhood function that generates neighboring tours
-        neighbors = []
-        for i in range(self.num_cities):
-            for j in range(i + 2, self.num_cities):
-                neighbor = tour[:i + 1] + tour[i + 1:j + 1][::-1] + tour[j + 1:]
-                neighbors.append(neighbor)
-        return neighbors
+            # Calculate the cost difference between the neighbor and the current tour
+            cost_difference = neighbor_length - current_tour_length
 
-    def hill_climbing(self):
-        start_time = time.time()
+            # If the neighbor's tour is better or we accept worse solutions based on the temperature,
+            # update the current tour
+            if cost_difference < 0 or random.random() < pow(math.e, -cost_difference / temperature):
+                current_tour = neighbor
+                current_tour_length = neighbor_length
 
-        tour = self.nearest_neighbor()  # Use nearest neighbor to generate a better initial tour
-        tour_length = self.calculate_tour_length(tour)
-        improved = True
+            # Update the best tour if necessary
+            if current_tour_length < best_tour_length:
+                best_tour = current_tour
+                best_tour_length = current_tour_length
 
-        while improved:
-            improved = False
-            for neighbor in self.efficient_neighborhood(tour):
-                neighbor_length = self.calculate_tour_length(neighbor)
-                if neighbor_length < tour_length:
-                    tour = neighbor
-                    tour_length = neighbor_length
-                    improved = True
-                    break
+            # Cool down the temperature
+            temperature *= cooling_rate
 
-        self.tour = tour
-        self.tour_length = tour_length
+        self.tour = best_tour
+        self.tour_length = best_tour_length
 
-        end_time = time.time()  # Move end_time here
+        end_time = time.time()  # Stop measuring execution time
         execution_time = end_time - start_time
         print("Execution time:", execution_time, "seconds")
 
-    def calculate_tour_length(self, tour):
-        # Calculate the total length of the tour
-        total_length = 0
-        num_cities = self.num_cities
-        dist_matrix = self.dist_matrix
-        for i in range(num_cities - 1):
-            total_length += dist_matrix[tour[i]][tour[i + 1]]
-        total_length += dist_matrix[tour[-1]][tour[0]]
-        return total_length
+    def get_random_neighbor(self, tour):
+        # Function to generate a random neighbor tour by swapping two cities
+        neighbor = tour[:]
+        i, j = random.sample(range(self.num_cities), 2)
+        neighbor[i], neighbor[j] = neighbor[j], neighbor[i]
+        return neighbor
 
 
 # Usage of the TSPSolver class
 if __name__ == "__main__":
-    # Read the city file and build the distance matrix (Same as Sector 6)
-    input_file = "Channge_AISearchfile175.txt"  # Replace with the desired input file
-    # ... (The code to read the city file and build the distance matrix remains unchanged as provided in the initial code)
+    # Read the city file and build the distance matrix (Same as provided in the initial code) ...
+    input_file = "AISearchfile535.txt" 
     dist_matrix = build_distance_matrix(num_cities, distances, city_format)
 
-    # Create the TSPSolver instance and call the hill_climbing method
+    # Create the TSPSolver instance and call the simulated_annealing method
     tsp_solver = TSPSolver(dist_matrix)
-    tsp_solver.hill_climbing()
 
-    # Retrieve the results from the tsp_solver object
+    # Parameters for Simulated Annealing
+    initial_temperature = 1000
+    cooling_rate = 0.99
+    max_iterations = 10000
+
+    tsp_solver.simulated_annealing(initial_temperature, cooling_rate, max_iterations)
+
+    # Retrieve the results from the tsp_solver object (Same as provided in the initial code) ...
     tour = tsp_solver.tour
-    tour_length = tsp_solver.tour_length
-
-
-# ############ END OF THE COMPLETE CODE ############
-
-
-
-
+    tour_length = tsp_solver.tour_length\
 
 ############ START OF SECTOR 9 (IGNORE THIS COMMENT)
 ############

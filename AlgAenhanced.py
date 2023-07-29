@@ -322,8 +322,7 @@ added_note = ""
 
 ############
 ############ NOW YOUR CODE SHOULD BEGIN.
-
-
+############import sys
 import random
 import time  
 
@@ -433,16 +432,19 @@ class TSPSolver:
             total_length += dist_matrix[tour[i]][tour[i + 1]]
         total_length += dist_matrix[tour[-1]][tour[0]]
         return total_length
-     
+
+
 # Usage of the TSPSolver class
 if __name__ == "__main__":
-    # Read the city file and build the distance matrix
-    input_file = "AlgA_AISearchfile535.txt" 
+    # Read the city file and build the distance matrix (Same as Sector 6)
+    input_file = "AISearchfile535.txt"  # Corrected typo here
     # ... (The code to read the city file and build the distance matrix remains unchanged as provided in the initial code)
     dist_matrix = build_distance_matrix(num_cities, distances, city_format)
+
     # Create the TSPSolver instance and call the hill_climbing method
     tsp_solver = TSPSolver(dist_matrix)
     tsp_solver.hill_climbing()
+
     # Retrieve the results from the tsp_solver object
     tour = tsp_solver.tour
     tour_length = tsp_solver.tour_length

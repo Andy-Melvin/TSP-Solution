@@ -157,7 +157,7 @@ def read_in_algorithm_codes_and_tariffs(alg_codes_file):
 ############
 ############ END OF SECTOR 1 (IGNORE THIS COMMENT)
 
-input_file ="AISearchfile180.txt"
+input_file ="AISearchfile058.txt"
 
 ############ START OF SECTOR 2 (IGNORE THIS COMMENT)
 ############
@@ -289,7 +289,7 @@ my_last_name = ""
 ############
 ############ END OF SECTOR 7 (IGNORE THIS COMMENT)
 
-algorithm_code = "GA"
+algorithm_code = "SA"
 
 ############ START OF SECTOR 8 (IGNORE THIS COMMENT)
 ############
@@ -322,147 +322,136 @@ added_note = ""
 
 ############
 ############ NOW YOUR CODE SHOULD BEGIN.
-############import randomimport random
 
-import numpy as np
+import sys
+import time
+import random
+import math
 
-class GeneticTSPSolver:
+class TSPSolver:
     def __init__(self, dist_matrix):
+        # Initialize the TSPSolver with the given distance matrix
         self.dist_matrix = dist_matrix
         self.num_cities = len(dist_matrix)
         self.tour = None
-        self.tour_length = float('inf')
+        self.tour_length = None
+        self.heuristic_cache = {}  # Dictionary to cache heuristic values for states
 
-    def initial_population(self, population_size):
-        population = []
-        cities = list(range(self.num_cities))
-        for _ in range(population_size):
-            random.shuffle(cities)
-            population.append(cities[:])
-        return population
+    def calculate_mst_cost(self, partial_tour):
+        # Function to calculate the minimum spanning tree cost for the given partial tour
+        visited_cities = set(partial_tour)
+        unvisited_cities = set(range(self.num_cities)) - visited_cities
+        mst_cost = 0
+
+        # Prim's algorithm to build MST
+        while unvisited_cities:
+            min_edge = float('inf')
+            nearest_city = None
+
+            for city in visited_cities:
+                for neighbor in unvisited_cities:
+                    if city != neighbor and self.dist_matrix[city][neighbor] < min_edge:
+                        min_edge = self.dist_matrix[city][neighbor]
+                        nearest_city = neighbor
+
+            if nearest_city is not None:
+                mst_cost += min_edge
+                visited_cities.add(nearest_city)
+                unvisited_cities.remove(nearest_city)
+
+        return mst_cost
 
     def calculate_tour_length(self, tour):
-        length = 0
+        # Calculate the total length of the tour
+        tour_length = self.dist_matrix[tour[-1]][tour[0]]  # Add the distance from the last to the first city
+        for i in range(self.num_cities - 1):
+            tour_length += self.dist_matrix[tour[i]][tour[i + 1]]
+        return tour_length
+
+    def heuristic(self, state):
+        # Calculate the heuristic value (estimated cost of optimal tour) for the given state
+        state_tuple = tuple(state)
+        if state_tuple in self.heuristic_cache:
+            return self.heuristic_cache[state_tuple]
+
+        tour = state
+        estimated_cost = 0
+
+        # Calculate the cost of the remaining edges in the tour
         for i in range(self.num_cities):
-            length += self.dist_matrix[tour[i]][tour[(i + 1) % self.num_cities]]
-        return length
+            if i not in tour:
+                estimated_cost += self.dist_matrix[tour[-1]][i]
 
-    def selection_roulette(self, population):
-        fitness_values = [1 / self.calculate_tour_length(tour) for tour in population]
-        total_fitness = sum(fitness_values)
-        probabilities = [fitness / total_fitness for fitness in fitness_values]
+        # Add the cost of the minimum spanning tree
+        estimated_cost += self.calculate_mst_cost(tour)
 
-        parent1 = random.choices(population, probabilities)[0]
-        parent2 = random.choices(population, probabilities)[0]
+        # Cache the heuristic value for this state
+        self.heuristic_cache[state_tuple] = estimated_cost
 
-        return parent1, parent2
+        return estimated_cost
 
-    def crossover_ordered(self, parent1, parent2):
-        start_index = random.randint(0, self.num_cities - 1)
-        end_index = random.randint(start_index + 1, self.num_cities)
-        child1 = [-1] * self.num_cities
-        child2 = [-1] * self.num_cities
+    def simulated_annealing(self, initial_temperature, cooling_rate, max_iterations):
+        start_time = time.time()  # Start measuring execution time
 
-        child1[start_index:end_index] = parent1[start_index:end_index]
-        child2[start_index:end_index] = parent2[start_index:end_index]
+        current_tour = random.sample(range(self.num_cities), self.num_cities)  # Generate a random initial tour
+        current_tour_length = self.calculate_tour_length(current_tour)
 
-        for i in range(self.num_cities):
-            if parent2[i] not in child1:
-                for j in range(self.num_cities):
-                    if child1[j] == -1:
-                        child1[j] = parent2[i]
-                        break
+        best_tour = current_tour
+        best_tour_length = current_tour_length
 
-            if parent1[i] not in child2:
-                for j in range(self.num_cities):
-                    if child2[j] == -1:
-                        child2[j] = parent1[i]
-                        break
+        # Simulated Annealing loop
+        temperature = initial_temperature
+        for iteration in range(max_iterations):
+            neighbor = self.get_random_neighbor(current_tour)
+            neighbor_length = self.calculate_tour_length(neighbor)
 
-        return child1, child2
+            # Calculate the cost difference between the neighbor and the current tour
+            cost_difference = neighbor_length - current_tour_length
 
-    def mutate(self, tour):
-        for i in range(self.num_cities):
-            if random.random() < 0.01:
-                j = random.randint(0, self.num_cities - 1)
-                tour[i], tour[j] = tour[j], tour[i]
+            # If the neighbor's tour is better or we accept worse solutions based on the temperature,
+            # update the current tour
+            if cost_difference < 0 or random.random() < math.exp(-cost_difference / temperature):
+                current_tour = neighbor
+                current_tour_length = neighbor_length
 
-    def genetic_algorithm(self, population_size, generations):
-        start_time = time.time()
-        population = self.initial_population(population_size)
+            # Update the best tour if necessary
+            if current_tour_length < best_tour_length:
+                best_tour = current_tour
+                best_tour_length = current_tour_length
 
-        for generation in range(generations):
-            new_population = []
-            best_tour = min(population, key=self.calculate_tour_length)
-            new_population.append(best_tour)
+            # Cool down the temperature
+            temperature *= cooling_rate
 
-            while len(new_population) < population_size:
-                parent1, parent2 = self.selection_roulette(population)
-                child1, child2 = self.crossover_ordered(parent1, parent2)
-                self.mutate(child1)
-                self.mutate(child2)
-                new_population.extend([child1, child2])
+        self.tour = best_tour
+        self.tour_length = best_tour_length
 
-            population = new_population
+        end_time = time.time()  # Stop measuring execution time
+        execution_time = end_time - start_time
+        print("Execution time:", execution_time, "seconds")
 
-        # self.tour = min(population, key=self.calculate_tour_length)
-        # self.tour_length = self.calculate_tour_length(self.tour)
-        # return self.tour, self.tour_length
-  # Check if the elapsed time exceeds 1 minute
-            elapsed_time = time.time() - start_time
-            if elapsed_time > 60:
-                raise TimeoutError("Genetic algorithm took more than 1 minute. Terminating...")
-
-        self.tour = min(population, key=self.calculate_tour_length)
-        self.tour_length = self.calculate_tour_length(self.tour)
-        return self.tour, self.tour_length
-    
-
-def read_city_file(input_file):
-    cities = []
-    with open(input_file, 'r') as file:
-        for line in file:
-            x, y = map(float, line.strip().split())
-            cities.append((x, y))
-    return cities
-
-def calculate_distance(city1, city2):
-    x1, y1 = city1
-    x2, y2 = city2
-    return np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-
-
-
-
-
-
-
-
-
-
+    def get_random_neighbor(self, tour):
+        # Function to generate a random neighbor tour by swapping two cities
+        neighbor = tour[:]
+        i, j = random.sample(range(self.num_cities), 2)
+        neighbor[i], neighbor[j] = neighbor[j], neighbor[i]
+        return neighbor
 
 
 # Usage of the TSPSolver class
 if __name__ == "__main__":
-    input_file = "AISearchfile175.txt.txt"  # Replace with the actual file name containing city data
+    # Read the city file and build the distance matrix (Same as provided in the initial code) ...
+    input_file = "AISearchfile058.txt" 
     dist_matrix = build_distance_matrix(num_cities, distances, city_format)
-
-    # Create the TSPSolver instance and call the genetic_algorithm method
-    tsp_solver = GeneticTSPSolver(dist_matrix)
-    population_size = 50  # Replace with the desired population size for the genetic algorithm
-    generations = 1000  # Replace with the number of generations for the genetic algorithm
-    try:
-        tsp_solver.genetic_algorithm(population_size, generations)
-    except TimeoutError as e:
-        print(e)
-        exit(1)
-
-    # Retrieve the results from the tsp_solver object
+    # Create the TSPSolver instance and call the simulated_annealing method
+    tsp_solver = TSPSolver(dist_matrix)
+    # Parameters for Simulated Annealing
+    initial_temperature = 1000
+    cooling_rate = 0.99
+    max_iterations = 10000
+    tsp_solver.simulated_annealing(initial_temperature, cooling_rate, max_iterations)
+    # Retrieve the results from the tsp_solver object (Same as provided in the initial code) ...
     tour = tsp_solver.tour
     tour_length = tsp_solver.tour_length
-   
-
-
 
 ############ START OF SECTOR 9 (IGNORE THIS COMMENT)
 ############

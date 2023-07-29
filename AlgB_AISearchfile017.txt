@@ -1,0 +1,5 @@
+USER = admin ( ),
+ALGORITHM CODE = SA, NAME OF CITY-FILE = AISearchfile017.txt,
+SIZE = 17, TOUR LENGTH = 1873,
+15,11,5,9,12,1,0,14,6,8,7,10,16,4,3,13,2,
+NOTE = 
