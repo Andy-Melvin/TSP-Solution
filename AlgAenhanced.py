@@ -157,7 +157,7 @@ def read_in_algorithm_codes_and_tariffs(alg_codes_file):
 ############
 ############ END OF SECTOR 1 (IGNORE THIS COMMENT)
 
-input_file ="AISearchfile535.txt"
+input_file ="AISearchfile180.txt"
 
 ############ START OF SECTOR 2 (IGNORE THIS COMMENT)
 ############
@@ -322,7 +322,7 @@ added_note = ""
 
 ############
 ############ NOW YOUR CODE SHOULD BEGIN.
-############import sys
+
 import random
 import time  
 
@@ -332,8 +332,11 @@ class TSPSolver:
         self.num_cities = len(dist_matrix)
         self.tour = None
         self.tour_length = None
-        self.heuristic_cache = {}  # Initialize the heuristic cache to store previously calculated heuristic values
-        self.mst_cost = self.calculate_mst_cost(self.nearest_neighbor())  # Precalculate MST cost using the nearest neighbor tour
+        self.distance_cache = {} # Add a distance cache to store precalculated distances
+        self.heuristic_cache = {}  
+        self.mst_cost = self.calculate_mst_cost(self.nearest_neighbor())
+
+    
 
     def calculate_mst_cost(self, tour):
         # Function to calculate the minimum spanning tree cost for the given tour
@@ -399,10 +402,11 @@ class TSPSolver:
                 neighbors.append(neighbor)
         return neighbors
 
+    
     def hill_climbing(self):
-        start_time = time.time()  # Start measuring execution time
+        start_time = time.time()
 
-        tour = self.nearest_neighbor()  # Use nearest neighbor to generate a better initial tour
+        tour = self.nearest_neighbor()
         tour_length = self.calculate_tour_length(tour)
         improved = True
 
@@ -414,24 +418,32 @@ class TSPSolver:
                     tour = neighbor
                     tour_length = neighbor_length
                     improved = True
-                    break
+                    break  # Break the loop as soon as a better neighbor is found
 
         self.tour = tour
         self.tour_length = tour_length
 
-        end_time = time.time()  # Stop measuring execution time
+        end_time = time.time()
         execution_time = end_time - start_time
         print("Execution time:", execution_time, "seconds")
 
     def calculate_tour_length(self, tour):
-        # Calculate the total length of the tour
         total_length = 0
         num_cities = self.num_cities
         dist_matrix = self.dist_matrix
         for i in range(num_cities - 1):
-            total_length += dist_matrix[tour[i]][tour[i + 1]]
-        total_length += dist_matrix[tour[-1]][tour[0]]
+            if (tour[i], tour[i+1]) in self.distance_cache:
+                total_length += self.distance_cache[(tour[i], tour[i+1])]
+            else:
+                total_length += dist_matrix[tour[i]][tour[i + 1]]
+                self.distance_cache[(tour[i], tour[i+1])] = dist_matrix[tour[i]][tour[i + 1]]
+        if (tour[-1], tour[0]) in self.distance_cache:
+            total_length += self.distance_cache[(tour[-1], tour[0])]
+        else:
+            total_length += dist_matrix[tour[-1]][tour[0]]
+            self.distance_cache[(tour[-1], tour[0])] = dist_matrix[tour[-1]][tour[0]]
         return total_length
+
 
 
 # Usage of the TSPSolver class
